@@ -1,6 +1,6 @@
-# IAM role for Amplify deployment
-resource "aws_iam_role" "amplify_service_role" {
-  name = "la_program_amplify_service_role"
+# IAM role for Amplify Deploy
+resource "aws_iam_role" "amplify" {
+  name = "la_program_amplify"
   tags = local.application_tag
 
   assume_role_policy = jsonencode({
@@ -17,17 +17,17 @@ resource "aws_iam_role" "amplify_service_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "amplify_service_role_attachment" {
-  role       = aws_iam_role.amplify_service_role.name
+resource "aws_iam_role_policy_attachment" "amplify_deploy" {
+  role       = aws_iam_role.amplify.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess-Amplify"
 }
 
-# deploys frontend React SPA using Amplify Deploy
+# deploys frontend React SPA using Amplify Deploy on main branch
 resource "aws_amplify_app" "frontend_app" {
   name                 = "la_program_frontend_app"
   repository           = "https://github.com/UCLA-LA-Program/site"
   tags                 = local.application_tag
-  iam_service_role_arn = aws_iam_role.amplify_service_role.arn
+  iam_service_role_arn = aws_iam_role.amplify.arn
 
 
   # access_token = ""
@@ -38,20 +38,39 @@ resource "aws_amplify_app" "frontend_app" {
   # Amplify console -> App settings -> Branch settings -> Reconnect Repository -> add the app to the repository
   # the access token can be deleted after this process and terraform reapplied safely
 
-  enable_auto_branch_creation = true
-  enable_branch_auto_build    = true
-  enable_branch_auto_deletion = true
-
+  enable_auto_branch_creation = false
   auto_branch_creation_patterns = [
     "*",
     "*/**",
   ]
+
+  custom_rule {
+    source = "https://${local.domain}"
+    status = "302"
+    target = "https://www.${local.domain}"
+  }
 }
 
-resource "aws_amplify_branch" "frontend_app_main_branch" {
+resource "aws_amplify_branch" "main" {
   app_id                 = aws_amplify_app.frontend_app.id
   branch_name            = "main"
   framework              = "React"
   stage                  = "PRODUCTION"
   enable_skew_protection = true
+}
+
+# set up Amplify Deploy to serve through owned domain
+resource "aws_amplify_domain_association" "frontend" {
+  app_id      = aws_amplify_app.frontend_app.id
+  domain_name = local.domain
+
+  sub_domain {
+    branch_name = aws_amplify_branch.main.branch_name
+    prefix      = ""
+  }
+
+  sub_domain {
+    branch_name = aws_amplify_branch.main.branch_name
+    prefix      = "www"
+  }
 }

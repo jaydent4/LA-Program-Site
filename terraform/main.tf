@@ -14,4 +14,8 @@ locals {
   # paths and names (stripped of .py) of lambda functions
   lambda_paths = fileset("../backend", "*.py")
   lambda_names = { for path in local.lambda_paths : path => trimsuffix(path, ".py") }
+
+  # domain names
+  api_domain = "api.laprogramucla.com"
+  domain     = "laprogramucla.com"
 }
