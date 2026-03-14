@@ -43,5 +43,3 @@ def lambda_handler(event, context):
     
     print(f"OBTAINED {len(response)} records")
     print(response)
-        
-lambda_handler(None, None)
